@@ -1,0 +1,9 @@
+{
+    "editor.defaultFormatter": "rust-lang.rust-analyzer",
+    "rust-analyzer.rustfmt.extraArgs": [
+        "+nightly"
+    ],
+    "editor.formatOnPaste": true,
+    "editor.formatOnSave": true,
+    "editor.formatOnType": true
+}
