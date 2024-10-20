@@ -1,25 +1,95 @@
 pub mod trie
 {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
     struct Node
     {
-        children: Vec<Option<usize>>,
+        children: Vec<Option<Rc<RefCell<Node>>>>,
         id: Option<i32>,
-        cover: i32,
     }
 
     pub struct Trie
     {
-        nodes: Vec<Node>,
+        root: Rc<RefCell<Node>>,
     }
 
     impl Node
     {
-        pub fn new() -> Node
+        pub fn new() -> Rc<RefCell<Node>>
         {
-            Node {
+            Rc::new(RefCell::new(Node {
                 children: vec![None; 52],
                 id: None,
-                cover: 0,
+            }))
+        }
+
+        fn insert(&mut self, key: &str, id: i32)
+        {
+            if key.is_empty()
+            {
+                self.id = Some(id);
+                return;
+            }
+            let key = key.as_bytes();
+            let index = self.char_to_index(&key[0]);
+            if self.children[index].is_none()
+            {
+                self.children[index] = Some(Node::new());
+            }
+            self.children[index]
+                .as_ref()
+                .unwrap()
+                .borrow_mut()
+                .insert(std::str::from_utf8(&key[1..]).unwrap(), id);
+        }
+        fn search(&self, key: &str) -> Option<i32>
+        {
+            if key.is_empty()
+            {
+                return self.id;
+            }
+            let key = key.as_bytes();
+            let index = self.char_to_index(&key[0]);
+            if self.children[index].is_none()
+            {
+                return None;
+            }
+            self.children[index]
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .search(std::str::from_utf8(&key[1..]).unwrap())
+        }
+        fn delete(&mut self, key: &str) -> bool
+        {
+            if key.is_empty()
+            {
+                if self.id.is_none()
+                {
+                    return false;
+                }
+                self.id = None;
+                return true;
+            }
+            let key = key.as_bytes();
+            let index = self.char_to_index(&key[0]);
+            if self.children[index].is_none()
+            {
+                return false;
+            }
+            let child = self.children[index].as_ref().unwrap();
+            return child
+                .borrow_mut()
+                .delete(std::str::from_utf8(&key[1..]).unwrap());
+        }
+        fn char_to_index(&self, c: &u8) -> usize
+        {
+            match c
+            {
+                b'a'..=b'z' => (c - b'a') as usize,
+                b'A'..=b'Z' => (c - b'A' + 26) as usize,
+                _ => panic!("Unsupported character: {}", c),
             }
         }
     }
@@ -29,90 +99,21 @@ pub mod trie
         pub fn new() -> Trie
         {
             Trie {
-                nodes: vec![Node::new()],
+                root: Node::new(), // Initialize the root node
             }
         }
 
-        pub fn insert(&mut self, word: &str, id: i32)
+        pub fn insert(&mut self, key: &str, id: i32)
         {
-            let mut current_node_index: usize = 0;
-            for &byte in word.as_bytes()
-            {
-                let index: usize = self.char_to_index(byte);
-                if self.nodes[current_node_index].children[index].is_none()
-                {
-                    self.nodes[current_node_index].children[index] = Some(self.nodes.len());
-                    self.nodes.push(Node::new());
-                }
-                current_node_index = self.nodes[current_node_index].children[index].unwrap();
-                self.nodes[current_node_index].cover += 1;
-            }
-
-            self.nodes[current_node_index].id = Some(id);
+            self.root.borrow_mut().insert(key, id);
         }
-
-        pub fn search(&self, word: &str) -> Option<i32>
+        pub fn search(&self, key: &str) -> Option<i32>
         {
-            let mut current_node_index: usize = 0;
-            for &byte in word.as_bytes()
-            {
-                let index = self.char_to_index(byte);
-                if let Some(next_node_index) = self.nodes[current_node_index].children[index]
-                {
-                    current_node_index = next_node_index;
-                }
-                else
-                {
-                    return None;
-                }
-            }
-            self.nodes[current_node_index].id
+            self.root.borrow().search(key)
         }
-        pub fn delete(&mut self, word: &str) -> bool
+        pub fn delete(&mut self, key: &str) -> bool
         {
-            return self.delete_recursively(word.as_bytes(), 0, 0);
-        }
-        fn delete_recursively(
-            &mut self,
-            word: &[u8],
-            current_node_index: usize,
-            depth: usize,
-        ) -> bool
-        {
-            if depth == word.len()
-            {
-                self.nodes[current_node_index].id = None;
-                self.nodes[current_node_index].cover -= 1;
-                return true;
-            }
-            let index = self.char_to_index(word[depth]);
-            if let Some(next_node_index) = self.nodes[current_node_index].children[index]
-            {
-                if self.delete_recursively(word, next_node_index, depth + 1)
-                {
-                    if self.nodes[next_node_index].cover == 0
-                    {
-                        self.nodes[current_node_index].children[index] = None;
-                    }
-                    self.nodes[current_node_index].cover -= 1;
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            return false;
-        }
-
-        fn char_to_index(&self, c: u8) -> usize
-        {
-            match c
-            {
-                b'a'..=b'z' => (c - b'a') as usize,
-                b'A'..=b'Z' => (c - b'A' + 26) as usize,
-                _ => panic!("Unsupported character: {}", c),
-            }
+            self.root.borrow_mut().delete(key)
         }
     }
 }
