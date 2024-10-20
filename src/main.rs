@@ -61,27 +61,45 @@ pub mod trie
                 .borrow()
                 .search(std::str::from_utf8(&key[1..]).unwrap())
         }
-        fn delete(&mut self, key: &str) -> bool
+        fn delete(&mut self, key: &str) -> (bool, bool)
         {
+            let delete_success: bool;
+            let mut node_useless: bool = false;
             if key.is_empty()
             {
                 if self.id.is_none()
                 {
-                    return false;
+                    delete_success = false;
                 }
-                self.id = None;
-                return true;
+                else
+                {
+                    self.id = None;
+                    delete_success = true;
+                }
             }
-            let key = key.as_bytes();
-            let index = self.char_to_index(&key[0]);
-            if self.children[index].is_none()
+            else
             {
-                return false;
+                let key = key.as_bytes();
+                let index = self.char_to_index(&key[0]);
+                if self.children[index].is_none()
+                {
+                    delete_success = false;
+                }
+                else
+                {
+                    let child = self.children[index].as_ref().unwrap();
+                    let res = child
+                        .borrow_mut()
+                        .delete(std::str::from_utf8(&key[1..]).unwrap());
+                    delete_success = res.0;
+                    if res.1
+                    {
+                        self.children[index] = None;
+                        node_useless = self.children.iter().all(|x| x.is_none());
+                    }
+                }
             }
-            let child = self.children[index].as_ref().unwrap();
-            return child
-                .borrow_mut()
-                .delete(std::str::from_utf8(&key[1..]).unwrap());
+            (delete_success, node_useless)
         }
         fn char_to_index(&self, c: &u8) -> usize
         {
@@ -113,7 +131,7 @@ pub mod trie
         }
         pub fn delete(&mut self, key: &str) -> bool
         {
-            self.root.borrow_mut().delete(key)
+            self.root.borrow_mut().delete(key).0
         }
     }
 }
