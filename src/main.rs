@@ -77,23 +77,27 @@ pub mod trie
             }
             else
             {
-                let key = key.as_bytes();
-                let index = self.char_to_index(&key[0]);
-                if self.children[index].is_none()
+                let key_bytes = key.as_bytes();
+                let index = self.char_to_index(&key_bytes[0]);
+                if let Some(ref child) = self.children[index]
                 {
-                    false
+                    if let Ok(next_key) = std::str::from_utf8(&key_bytes[1..])
+                    {
+                        let (child_deleted, is_child_useless) = child.borrow_mut().delete(next_key);
+                        if is_child_useless
+                        {
+                            self.children[index] = None;
+                        }
+                        child_deleted
+                    }
+                    else
+                    {
+                        false
+                    }
                 }
                 else
                 {
-                    let child = self.children[index].as_ref().unwrap();
-                    let res = child
-                        .borrow_mut()
-                        .delete(std::str::from_utf8(&key[1..]).unwrap());
-                    if res.1
-                    {
-                        self.children[index] = None;
-                    }
-                    res.0
+                    false
                 }
             };
             let node_useless = self.children.iter().all(|x| x.is_none());
