@@ -63,18 +63,16 @@ pub mod trie
         }
         fn delete(&mut self, key: &str) -> (bool, bool)
         {
-            let delete_success: bool;
-            let mut node_useless: bool = false;
-            if key.is_empty()
+            let delete_success: bool = if key.is_empty()
             {
                 if self.id.is_none()
                 {
-                    delete_success = false;
+                    false
                 }
                 else
                 {
                     self.id = None;
-                    delete_success = true;
+                    true
                 }
             }
             else
@@ -83,7 +81,7 @@ pub mod trie
                 let index = self.char_to_index(&key[0]);
                 if self.children[index].is_none()
                 {
-                    delete_success = false;
+                    false
                 }
                 else
                 {
@@ -91,14 +89,14 @@ pub mod trie
                     let res = child
                         .borrow_mut()
                         .delete(std::str::from_utf8(&key[1..]).unwrap());
-                    delete_success = res.0;
                     if res.1
                     {
                         self.children[index] = None;
-                        node_useless = self.children.iter().all(|x| x.is_none());
                     }
+                    res.0
                 }
-            }
+            };
+            let node_useless = self.children.iter().all(|x| x.is_none());
             (delete_success, node_useless)
         }
         fn char_to_index(&self, c: &u8) -> usize
