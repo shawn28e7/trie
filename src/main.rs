@@ -83,12 +83,13 @@ pub mod trie
                 {
                     if let Ok(next_key) = std::str::from_utf8(&key_bytes[1..])
                     {
-                        let (child_deleted, is_child_useless) = child.borrow_mut().delete(next_key);
+                        let (child_delete_success, is_child_useless) =
+                            child.borrow_mut().delete(next_key);
                         if is_child_useless
                         {
                             self.children[index] = None;
                         }
-                        child_deleted
+                        child_delete_success
                     }
                     else
                     {
